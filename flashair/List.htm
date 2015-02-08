@@ -1,0 +1,126 @@
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>FlashAir Asynchronous Data Transfer</title>
+<script language="javascript" type="text/javascript">
+<!--
+    var proc  = 0;
+    var phase = 0;
+    var txdata = [];
+    var tx = 0;
+    var resp;
+    var timer;
+    function get(data) {
+        var request = new XMLHttpRequest();
+        var url = "http://flashair/command.cgi?op=190&CTRL=0x0f&DATA=0x0" + data;
+        request.open("GET", url, false);
+        request.send(null);
+        resp = request.responseText;
+    }
+    function init() {
+        get("0");
+        document.getElementById("stat").value = "Init";
+    }
+    
+    function send(){
+        gentxdata(); 
+        proc  = 0;
+        phase = 0;
+        document.getElementById("stat").value = "Start";
+        timer = setInterval("txloop()", 100);
+    }
+    
+    function txloop(){
+        if (proc == 0) {
+            proc = 1;
+            get(tx);
+            document.getElementById("resp").value = resp;
+            var respData = JSON.parse(resp).DATA;
+            var ack = respData.substr(2,1);
+            document.getElementById("respdata").value = respData;
+            document.getElementById("ack").value = ack;
+
+            if((phase == 0)&&(ack == 0)){
+                phase = 1;
+                var d = txdata.pop();
+                tx = enc(d);
+                get(tx);
+                document.getElementById("stat").value = "Data:" + d + "(" + txdata.length + ")";
+            }else if ((phase == 1)&&(ack == 1)){
+                phase = 0;
+                tx = "0";
+                get("0");
+                document.getElementById("stat").value = "Spacer:" + txdata.length;
+            }
+
+            if ((txdata.length == 0)&&(phase == 0)){
+                clearInterval(timer);
+                document.getElementById("stat").value = "End";
+            }
+            proc = 0; 
+        } 
+    }
+
+    function gentxdata(){
+        var bin = parseInt(document.getElementById("txvalue").value, 16).toString(2); 
+        while (bin.length < 16) {
+            bin = "0"+bin;    
+        }
+        var i;
+        txdata.length = 0;
+        for(i = 1; i <= 8; i++){
+            txdata.push(bin.substr(-2*i, 2));    
+        }
+
+        document.getElementById("binval").value = bin;
+        document.getElementById("binval_0").value = txdata[0];
+        document.getElementById("binval_1").value = txdata[1];
+        document.getElementById("binval_2").value = txdata[2];
+        document.getElementById("binval_3").value = txdata[3];
+        document.getElementById("binval_4").value = txdata[4];
+        document.getElementById("binval_5").value = txdata[5];
+        document.getElementById("binval_6").value = txdata[6];
+        document.getElementById("binval_7").value = txdata[7];
+    }
+
+
+    function enc(param) {
+        var ret = 0;
+        if (param == "00") {
+            ret = "5"; // 0101
+        } else if (param == "01") {
+            ret = "6"; // 0110
+        } else if (param == "10") {
+            ret = "9"; // 1001   
+        } else if (param == "11") {
+            ret = "A"; // 1010    
+        } else {
+            ret = "0"; // 0000    
+        }
+        return ret;
+    }
+// -->
+</script>
+</head>
+<body onload="init()">
+<p>FlashAir Asynchronous Data Transfer</p>
+<form>
+    Data: <input type="text" id="txvalue" value="0000" />
+    <input type="button" value="Send" onclick="send()" /> <input type="button" value="Reset" onclick="reset()" /><br /><br />
+    Status: <input type="text" id="stat" /> <br /><br /><hr /><br />
+
+    Bin: <input type="text" id="binval" /> <br /><br />
+    Data(n): <input type="text" size="1" id="binval_7" />
+    <input type="text" size="1" id="binval_6" />
+    <input type="text" size="1" id="binval_5" />
+    <input type="text" size="1" id="binval_4" />
+    <input type="text" size="1" id="binval_3" />
+    <input type="text" size="1" id="binval_2" />
+    <input type="text" size="1" id="binval_1" />
+    <input type="text" size="1" id="binval_0" /> <br /><br />
+    Resp: <input type="text" size="40" id="resp"/><br /><br />
+    Resp.Data: <input type="text" id="respdata" /> <br /><br />
+    Ack: <input type="text" size="1" id="ack" /> <br /><br />
+</form>
+</body>
+</html>
